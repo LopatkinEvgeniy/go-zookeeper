@@ -596,7 +596,9 @@ func (c *Conn) authenticate() error {
 	}
 
 	atomic.StoreInt64(&c.sessionID, r.SessionID)
-	c.setTimeouts(r.TimeOut)
+	if r.TimeOut > c.sessionTimeoutMs {
+		c.setTimeouts(r.TimeOut)
+	}
 	c.passwd = r.Passwd
 	c.setState(StateHasSession)
 

@@ -358,7 +358,7 @@ func TestChildren(t *testing.T) {
 	rb := make([]byte, 1000)
 	hb := make([]byte, 2000)
 	prefix := []byte("/gozk-test-big/")
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 100; i++ {
 		_, err := rand.Read(rb)
 		if err != nil {
 			t.Fatal("Cannot create random znode name")
@@ -377,7 +377,7 @@ func TestChildren(t *testing.T) {
 	children, _, err := zk.Children("/gozk-test-big")
 	if err != nil {
 		t.Fatalf("Children returned error: %+v", err)
-	} else if len(children) != 10000 {
+	} else if len(children) != 100 {
 		t.Fatal("Children returned wrong number of nodes")
 	}
 }

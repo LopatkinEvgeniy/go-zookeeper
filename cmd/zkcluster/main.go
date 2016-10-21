@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/multicharts/go-zookeeper/zk"
 )
 
 func main() {

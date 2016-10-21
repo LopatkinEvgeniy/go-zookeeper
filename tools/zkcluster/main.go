@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -12,13 +13,16 @@ import (
 )
 
 func main() {
+	size := flag.Int("size", 1, "Number of servers in cluster")
+	flag.Parse()
+
 	waitsig := make(chan os.Signal, 1)
 	signal.Notify(waitsig, syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	cluster, err := zk.StartTestCluster(3, os.Stderr, os.Stderr)
+	cluster, err := zk.StartTestCluster(*size, os.Stderr, os.Stderr)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

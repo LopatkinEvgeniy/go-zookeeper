@@ -13,8 +13,8 @@ The following tools are available:
 
     Usage:
 
-        $ go get github.com/multicharts/go-zookeeper/tools/zkcluster
-        $ $GOPATH/bin/zkcluster
+        $ go get github.com/multicharts/go-zookeeper/cmd/zkcluster
+        $ $GOPATH/bin/zkcluster -size 3
 
 ### Library
 

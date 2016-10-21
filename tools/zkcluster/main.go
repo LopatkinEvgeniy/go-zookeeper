@@ -12,6 +12,12 @@ import (
 )
 
 func main() {
+	waitsig := make(chan os.Signal, 1)
+	signal.Notify(waitsig, syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
 	cluster, err := zk.StartTestCluster(3, os.Stderr, os.Stderr)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -35,12 +41,6 @@ func main() {
 	}
 
 	fmt.Printf("%s\n", b)
-
-	waitsig := make(chan os.Signal, 1)
-	signal.Notify(waitsig, syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
 
 	<-waitsig
 }

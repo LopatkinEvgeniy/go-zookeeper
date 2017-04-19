@@ -34,7 +34,7 @@ func main() {
 
 	if children {
 		for {
-			children, stat, ch, err := conn.ChildrenW(path)
+			children, _, ch, err := conn.ChildrenW(path)
 			if err != nil {
 				fmt.Println(err)
 				return

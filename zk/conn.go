@@ -35,6 +35,7 @@ var ErrInvalidPath = errors.New("zk: invalid path")
 var DefaultLogger Logger = defaultLogger{}
 
 const (
+	bufferSize        = 1536 * 1024
 	defaultBufferSize = 1024 * 1024 // By default, anything larger than 1MB will be rejected by zookeeper.
 	eventChanSize     = 6
 	sendChanSize      = 16
@@ -92,6 +93,8 @@ type Conn struct {
 
 	closeOnSessionExpiration bool
 	disallowServerTimeouts   bool
+
+	maxBufferSize int
 
 	creds   []authCreds
 	credsMu sync.Mutex // protects server
@@ -318,6 +321,36 @@ func (c *Conn) closeWithError(err error) {
 	// with concurrent closeWg.Add calls.
 	c.closeWg.Wait()
 	close(stopChan)
+}
+
+// WithMaxBufferSize sets the maximum buffer size used to read and decode
+// packets received from the Zookeeper server. The standard Zookeeper client for
+// Java defaults to a limit of 1mb. For backwards compatibility, this Go client
+// defaults to unbounded unless overridden via this option. A value that is zero
+// or negative indicates that no limit is enforced.
+//
+// This is meant to prevent resource exhaustion in the face of potentially
+// malicious data in ZK. It should generally match the server setting (which
+// also defaults ot 1mb) so that clients and servers agree on the limits for
+// things like the size of data in an individual znode and the total size of a
+// transaction.
+//
+// For production systems, this should be set to a reasonable value (ideally
+// that matches the server configuration). For ops tooling, it is handy to use a
+// much larger limit, in order to do things like clean-up problematic state in
+// the ZK tree. For example, if a single znode has a huge number of children, it
+// is possible for the response to a "list children" operation to exceed this
+// buffer size and cause errors in clients. The only way to subsequently clean
+// up the tree (by removing superfluous children) is to use a client configured
+// with a larger buffer size that can successfully query for all of the child
+// names and then remove them. (Note there are other tools that can list all of
+// the child names without an increased buffer size in the client, but they work
+// by inspecting the servers' transaction logs to enumerate children instead of
+// sending an online request to a server.
+func WithMaxBufferSize(maxBufferSize int) connOption {
+	return func(c *Conn) {
+		c.maxBufferSize = maxBufferSize
+	}
 }
 
 func (c *Conn) Close() {
@@ -783,7 +816,11 @@ func (c *Conn) sendLoop() error {
 }
 
 func (c *Conn) recvLoop(conn net.Conn) error {
-	buf := make([]byte, c.bufferSize)
+	sz := bufferSize
+	if c.maxBufferSize > 0 && sz > c.maxBufferSize {
+		sz = c.maxBufferSize
+	}
+	buf := make([]byte, sz)
 	for {
 		// package length
 		conn.SetReadDeadline(time.Now().Add(c.recvTimeout))
@@ -794,6 +831,9 @@ func (c *Conn) recvLoop(conn net.Conn) error {
 
 		blen := int(binary.BigEndian.Uint32(buf[:4]))
 		if cap(buf) < blen {
+			if c.maxBufferSize > 0 && blen > c.maxBufferSize {
+				return fmt.Errorf("received packet from server with length %d, which exceeds max buffer size %d", blen, c.maxBufferSize)
+			}
 			buf = make([]byte, blen)
 		}
 

@@ -91,6 +91,7 @@ type Conn struct {
 	allowReadOnly  bool
 
 	closeOnSessionExpiration bool
+	disallowServerTimeouts   bool
 
 	creds   []authCreds
 	credsMu sync.Mutex // protects server
@@ -256,6 +257,14 @@ func WithHostProvider(hostProvider HostProvider) connOption {
 func AllowReadOnly(b bool) connOption {
 	return func(c *Conn) {
 		c.allowReadOnly = b
+	}
+}
+
+// Returns a connection option allowing resetting timeouts with values
+// received from server.
+func AllowServerTimeouts(b bool) connOption {
+	return func(c *Conn) {
+		c.disallowServerTimeouts = !b
 	}
 }
 
@@ -686,7 +695,7 @@ func (c *Conn) authenticate() error {
 	}
 
 	atomic.StoreInt64(&c.sessionID, r.SessionID)
-	if r.TimeOut > c.sessionTimeoutMs {
+	if r.TimeOut > c.sessionTimeoutMs && !c.disallowServerTimeouts {
 		c.setTimeouts(r.TimeOut)
 	}
 	c.passwd = r.Passwd

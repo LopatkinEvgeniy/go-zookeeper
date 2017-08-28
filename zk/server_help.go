@@ -26,7 +26,27 @@ type TestCluster struct {
 	Servers []TestServer
 }
 
+type TestClusterParams struct {
+	Size          int
+	Stdout        io.Writer
+	Stderr        io.Writer
+	MaxRetry      int
+	Timeout       time.Duration
+	RetryInterval time.Duration
+}
+
 func StartTestCluster(size int, stdout, stderr io.Writer) (*TestCluster, error) {
+	return StartTestClusterParams(TestClusterParams{
+		Size:          size,
+		Stdout:        stdout,
+		Stderr:        stderr,
+		MaxRetry:      10,
+		Timeout:       time.Second,
+		RetryInterval: time.Second,
+	})
+}
+
+func StartTestClusterParams(params TestClusterParams) (*TestCluster, error) {
 	tmpPath, err := ioutil.TempDir("", "gozk")
 	if err != nil {
 		return nil, err
@@ -39,7 +59,7 @@ func StartTestCluster(size int, stdout, stderr io.Writer) (*TestCluster, error) 
 			cluster.Stop()
 		}
 	}()
-	for serverN := 0; serverN < size; serverN++ {
+	for serverN := 0; serverN < params.Size; serverN++ {
 		srvPath := filepath.Join(tmpPath, fmt.Sprintf("srv%d", serverN))
 		if err := os.Mkdir(srvPath, 0700); err != nil {
 			return nil, err
@@ -49,7 +69,7 @@ func StartTestCluster(size int, stdout, stderr io.Writer) (*TestCluster, error) 
 			ClientPort: port,
 			DataDir:    srvPath,
 		}
-		for i := 0; i < size; i++ {
+		for i := 0; i < params.Size; i++ {
 			cfg.Servers = append(cfg.Servers, ServerConfigServer{
 				ID:                 i + 1,
 				Host:               "127.0.0.1",
@@ -80,8 +100,8 @@ func StartTestCluster(size int, stdout, stderr io.Writer) (*TestCluster, error) 
 
 		srv := &Server{
 			ConfigPath: cfgPath,
-			Stdout:     stdout,
-			Stderr:     stderr,
+			Stdout:     params.Stdout,
+			Stderr:     params.Stderr,
 		}
 		if err := srv.Start(); err != nil {
 			return nil, err
@@ -92,7 +112,7 @@ func StartTestCluster(size int, stdout, stderr io.Writer) (*TestCluster, error) 
 			Srv:  srv,
 		})
 	}
-	if err := cluster.waitForStart(10, time.Second); err != nil {
+	if err := cluster.waitForStart(params.MaxRetry, params.RetryInterval, params.Timeout); err != nil {
 		return nil, err
 	}
 	success = true
@@ -130,7 +150,7 @@ func (tc *TestCluster) Stop() error {
 }
 
 // waitForStart blocks until the cluster is up
-func (tc *TestCluster) waitForStart(maxRetry int, interval time.Duration) error {
+func (tc *TestCluster) waitForStart(maxRetry int, interval, timeout time.Duration) error {
 	// verify that the servers are up with SRVR
 	serverAddrs := make([]string, len(tc.Servers))
 	for i, s := range tc.Servers {
@@ -138,7 +158,7 @@ func (tc *TestCluster) waitForStart(maxRetry int, interval time.Duration) error 
 	}
 
 	for i := 0; i < maxRetry; i++ {
-		_, ok := FLWSrvr(serverAddrs, time.Second)
+		_, ok := FLWSrvr(serverAddrs, timeout)
 		if ok {
 			return nil
 		}

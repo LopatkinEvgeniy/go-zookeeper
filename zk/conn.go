@@ -68,7 +68,7 @@ type authCreds struct {
 }
 
 type Conn struct {
-	lastZxid         int64
+	unsafeLastZxid   int64 // use lastZxid()/setLastZxid() for read/write
 	sessionID        int64
 	state            State // must be 32-bit aligned
 	xid              uint32
@@ -391,6 +391,16 @@ func (c *Conn) SessionID() int64 {
 	return atomic.LoadInt64(&c.sessionID)
 }
 
+// lastZxid returns last seen zxid.
+func (c *Conn) lastZxid() int64 {
+	return atomic.LoadInt64(&c.unsafeLastZxid)
+}
+
+// setLastZxid saves last seen zxid value.
+func (c *Conn) setLastZxid(val int64) {
+	atomic.StoreInt64(&c.unsafeLastZxid, val)
+}
+
 // SetLogger sets the logger to be used for printing errors.
 // Logger is an interface provided by this package.
 func (c *Conn) SetLogger(l Logger) {
@@ -674,7 +684,7 @@ func (c *Conn) sendSetWatches() {
 			}
 			sizeSoFar = 28 // fixed overhead of a set-watches packet
 			req = &setWatchesRequest{
-				RelativeZxid: c.lastZxid,
+				RelativeZxid: c.lastZxid(),
 				DataWatches:  make([]string, 0),
 				ExistWatches: make([]string, 0),
 				ChildWatches: make([]string, 0),
@@ -724,7 +734,7 @@ func (c *Conn) authenticate() error {
 	// Encode and send a connect request.
 	n, err := encodePacket(buf[4:], &connectRequest{
 		ProtocolVersion: protocolVersion,
-		LastZxidSeen:    c.lastZxid,
+		LastZxidSeen:    c.lastZxid(),
 		TimeOut:         c.sessionTimeoutMs,
 		SessionID:       c.SessionID(),
 		Passwd:          c.passwd,
@@ -769,7 +779,7 @@ func (c *Conn) authenticate() error {
 	if r.SessionID == 0 {
 		atomic.StoreInt64(&c.sessionID, int64(0))
 		c.passwd = emptyPassword
-		c.lastZxid = 0
+		c.setLastZxid(0)
 		c.setState(StateExpired)
 		return ErrSessionExpired
 	}
@@ -936,7 +946,7 @@ func (c *Conn) recvLoop(conn net.Conn) error {
 			c.logger.Printf("Xid < 0 (%d) but not ping or watcher event", res.Xid)
 		} else {
 			if res.Zxid > 0 {
-				c.lastZxid = res.Zxid
+				c.setLastZxid(res.Zxid)
 			}
 
 			c.requestsLock.Lock()

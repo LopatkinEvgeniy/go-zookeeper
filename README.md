@@ -1,7 +1,7 @@
 Native Go Zookeeper Client Library (Fork)
 =========================================
 
-[![GoDoc](https://godoc.org/github.com/multicharts/go-zookeeper/zk?status.svg)](https://godoc.org/github.com/multicharts/go-zookeeper/zk)
+[![GoDoc](https://godoc.org/github.com/multicharts/go-zookeeper/zk?status.svg)](https://godoc.org/github.com/multicharts/go-zookeeper/zk) [![Travis](https://travis-ci.org/multicharts/go-zookeeper.svg?branch=master)](https://travis-ci.org/multicharts/go-zookeeper)
 
 [Zookeeper](https://zookeeper.apache.org/) client library for the Go language.
 

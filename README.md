@@ -83,8 +83,9 @@ The following are fundamental operations on Znodes:
 Acknowledgements
 ----------------
 
-* This is a fork of [`samuel/go-zookeeper`](https://github.com/samuel/go-zookeeper) with a few bug fixes and improvements.
-* README and tour was adopted from [`talbright/go-zookeeper`](https://github.com/talbright/go-zookeeper) (another fork).
+* This is a fork of [samuel/go-zookeeper](https://github.com/samuel/go-zookeeper) with a few bug fixes and improvements.
+* Most bugfixes are ported from other forks.
+* README and tour is adopted from [talbright/go-zookeeper](https://github.com/talbright/go-zookeeper).
 
 License
 -------
